@@ -26,4 +26,3 @@ POST localhost:8080/msg
     "msg": "hello"
 }
 ```
-
