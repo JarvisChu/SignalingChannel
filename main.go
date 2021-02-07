@@ -11,5 +11,6 @@ func main() {
 	r.GET("/ping", api.Ping)
 	r.GET("/accounts", api.GetAccountList)
 	r.GET("/ws", ws.Handle)
+	r.POST("/msg", api.SendMsg)
 	r.Run(":8080")
 }

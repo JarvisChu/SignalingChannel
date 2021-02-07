@@ -1,6 +1,7 @@
 package account
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -15,7 +16,7 @@ type Status string
 const (
 	Offline Status = "offline"
 	Online  Status = "online"
-	Calling Status = "calling" // 通话中
+	Calling Status = "calling"
 )
 
 // Account
@@ -53,4 +54,13 @@ func UpdateAccountStatus(id string, status Status) {
 	}
 
 	return
+}
+
+func GetAccountByID(id string)(*Account, error){
+	for _, a := range accounts {
+		if a.ID == id {
+			return a, nil
+		}
+	}
+	return nil, fmt.Errorf("not fount")
 }

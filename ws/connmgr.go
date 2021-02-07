@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/jarvischu/signalchannel/account"
@@ -9,7 +10,7 @@ import (
 
 var connMgr *ConnMgr
 
-// ConnMgr 管理所有的连接
+// ConnMgr manage all connections
 type ConnMgr struct {
 	connMap map[string]*websocket.Conn
 	mtx     sync.Mutex
@@ -25,18 +26,17 @@ func GetConnMgr() *ConnMgr {
 	return connMgr
 }
 
-func (c *ConnMgr) AddConn(uid string, conn *websocket.Conn) {
+func (c *ConnMgr) AddConn(id string, conn *websocket.Conn) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	// 互踢逻辑
-	connStored, ok := c.connMap[uid]
+	// disconnect previous connection
+	connStored, ok := c.connMap[id]
 	if ok {
 		connStored.Close()
 	}
 
-	// 加入到mgr
-	c.connMap[uid] = conn
+	c.connMap[id] = conn
 }
 
 func (c *ConnMgr) RemoveConn(uid string) {
@@ -51,6 +51,10 @@ func (c *ConnMgr) RemoveConn(uid string) {
 	delete(c.connMap, uid)
 }
 
+func (c *ConnMgr) GetConn(uid string) *websocket.Conn {
+	return c.connMap[uid]
+}
+
 func (c *ConnMgr) HandleConn(uid string, conn *websocket.Conn) {
 	fmt.Printf("[HandleConn] uid:%v, conn:%v \n", uid, conn.RemoteAddr().String())
 
@@ -60,13 +64,23 @@ func (c *ConnMgr) HandleConn(uid string, conn *websocket.Conn) {
 		Status: account.Online,
 	})
 
-	// 读取数据
+	// Send data
+	go func() {
+		//todo using channel to send data
+	}()
+
+	// Read data
 	for {
 		msgType, msg, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Printf("conn read message failed, uid:%v, err:%v \n", uid, err)
-			c.RemoveConn(uid)
-			account.UpdateAccountStatus(uid, account.Offline)
+
+			// if disconnect by client, update connections and account
+			connStored := c.GetConn(uid)
+			if connStored != nil && conn != nil && connStored == conn {
+				c.RemoveConn(uid)
+				account.UpdateAccountStatus(uid, account.Offline)
+			}
 			return
 		}
 
@@ -74,6 +88,22 @@ func (c *ConnMgr) HandleConn(uid string, conn *websocket.Conn) {
 	}
 }
 
-func (c *ConnMgr) Send(from string, to string, data string) error {
-	return nil
+type DataFrame struct {
+	Sender string `json:"sender"`
+	Msg    string `json:"msg"`
+}
+
+func (c *ConnMgr) Send(from string, to string, msg string) error {
+	conn := c.GetConn(to)
+	if conn == nil {
+		return fmt.Errorf("connection not found, to:%v", to)
+	}
+
+	frame := DataFrame{
+		Sender: from,
+		Msg:    msg,
+	}
+
+	b, _ := json.Marshal(&frame)
+	return conn.WriteMessage(websocket.TextMessage, b)
 }
