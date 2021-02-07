@@ -1,7 +1,7 @@
 # build
 FROM golang as Builder
 WORKDIR /go/src
-COPY * .
+ADD . .
 RUN make
 
 # run

@@ -39,28 +39,28 @@ func (c *ConnMgr) AddConn(id string, conn *websocket.Conn) {
 	c.connMap[id] = conn
 }
 
-func (c *ConnMgr) RemoveConn(uid string) {
+func (c *ConnMgr) RemoveConn(id string) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	conn, ok := c.connMap[uid]
+	conn, ok := c.connMap[id]
 	if ok {
 		conn.Close()
 	}
 
-	delete(c.connMap, uid)
+	delete(c.connMap, id)
 }
 
-func (c *ConnMgr) GetConn(uid string) *websocket.Conn {
-	return c.connMap[uid]
+func (c *ConnMgr) GetConn(id string) *websocket.Conn {
+	return c.connMap[id]
 }
 
-func (c *ConnMgr) HandleConn(uid string, conn *websocket.Conn) {
-	fmt.Printf("[HandleConn] uid:%v, conn:%v \n", uid, conn.RemoteAddr().String())
+func (c *ConnMgr) HandleConn(id string, conn *websocket.Conn) {
+	fmt.Printf("[HandleConn] id:%v, conn:%v \n", id, conn.RemoteAddr().String())
 
-	c.AddConn(uid, conn)
+	c.AddConn(id, conn)
 	account.AddAccount(&account.Account{
-		ID:     uid,
+		ID:     id,
 		Status: account.Online,
 	})
 
@@ -73,18 +73,18 @@ func (c *ConnMgr) HandleConn(uid string, conn *websocket.Conn) {
 	for {
 		msgType, msg, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Printf("conn read message failed, uid:%v, err:%v \n", uid, err)
+			fmt.Printf("conn read message failed, id:%v, err:%v \n", id, err)
 
 			// if disconnect by client, update connections and account
-			connStored := c.GetConn(uid)
+			connStored := c.GetConn(id)
 			if connStored != nil && conn != nil && connStored == conn {
-				c.RemoveConn(uid)
-				account.UpdateAccountStatus(uid, account.Offline)
+				c.RemoveConn(id)
+				account.UpdateAccountStatus(id, account.Offline)
 			}
 			return
 		}
 
-		fmt.Printf("recieve message from %v, msgType:%v, msg:%v \n", uid, msgType, string(msg))
+		fmt.Printf("recieve message from %v, msgType:%v, msg:%v \n", id, msgType, string(msg))
 	}
 }
 
