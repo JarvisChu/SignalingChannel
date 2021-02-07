@@ -3,6 +3,7 @@ package ws
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/jarvischu/signalchannel/account"
 	"sync"
 )
 
@@ -51,16 +52,21 @@ func (c *ConnMgr) RemoveConn(uid string) {
 }
 
 func (c *ConnMgr) HandleConn(uid string, conn *websocket.Conn) {
-	fmt.Printf("[HandleConn] uid:%v, conn:%v", uid, conn.RemoteAddr().String())
+	fmt.Printf("[HandleConn] uid:%v, conn:%v \n", uid, conn.RemoteAddr().String())
 
 	c.AddConn(uid, conn)
+	account.AddAccount(&account.Account{
+		ID:     uid,
+		Status: account.Online,
+	})
 
 	// 读取数据
 	for {
 		msgType, msg, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Printf("conn read message failed, uid:%d, err:%v \n", uid, err)
+			fmt.Printf("conn read message failed, uid:%v, err:%v \n", uid, err)
 			c.RemoveConn(uid)
+			account.UpdateAccountStatus(uid, account.Offline)
 			return
 		}
 
