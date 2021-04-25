@@ -2,8 +2,8 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/jarvischu/signalchannel/account"
-	"github.com/jarvischu/signalchannel/ws"
+	"github.com/jarvischu/signalingchannel/account"
+	"github.com/jarvischu/signalingchannel/ws"
 	"net/http"
 )
 

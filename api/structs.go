@@ -1,6 +1,6 @@
 package api
 
-import "github.com/jarvischu/signalchannel/account"
+import "github.com/jarvischu/signalingchannel/account"
 
 type GetAccountListRsp struct {
 	Code        int                `json:"code"`

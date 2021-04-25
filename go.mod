@@ -1,4 +1,4 @@
-module github.com/jarvischu/signalchannel
+module github.com/jarvischu/signalingchannel
 
 go 1.15
 

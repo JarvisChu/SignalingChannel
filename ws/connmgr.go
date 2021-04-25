@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/jarvischu/signalchannel/account"
+	"github.com/jarvischu/signalingchannel/account"
+	"strings"
 	"sync"
 )
 
@@ -64,12 +65,8 @@ func (c *ConnMgr) HandleConn(id string, conn *websocket.Conn) {
 		Status: account.Online,
 	})
 
-	// Send data
-	go func() {
-		//todo using channel to send data
-	}()
-
 	// Read data
+	peer := ""
 	for {
 		msgType, msg, err := conn.ReadMessage()
 		if err != nil {
@@ -85,6 +82,25 @@ func (c *ConnMgr) HandleConn(id string, conn *websocket.Conn) {
 		}
 
 		fmt.Printf("recieve message from %v, msgType:%v, msg:%v \n", id, msgType, string(msg))
+
+		// forward message to peer
+		if len(peer) > 0 {
+			peerConn := c.GetConn(peer)
+			if peerConn != nil {
+				if err := peerConn.WriteMessage(msgType,msg); err != nil {
+					fmt.Printf("WriteMessage failed, %v\n", err)
+				}else{
+					fmt.Printf("WriteMessage success\n")
+				}
+			}
+		}
+
+		if strings.HasPrefix(string(msg), "set-peer:") {
+			arr := strings.Split(string(msg), ":")
+			if len(arr) == 2 {
+				peer = arr[1]
+			}
+		}
 	}
 }
 

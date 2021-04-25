@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/jarvischu/signalchannel/api"
-	"github.com/jarvischu/signalchannel/ws"
+	"github.com/jarvischu/signalingchannel/api"
+	"github.com/jarvischu/signalingchannel/ws"
 )
 
 func main() {
