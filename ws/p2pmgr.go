@@ -1,87 +1,76 @@
 package ws
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/jarvischu/signalingchannel/account"
 	"strings"
 	"sync"
 )
 
-var connMgr *ConnMgr
+var p2pMgr *P2PMgr
 
-// ConnMgr manage all connections
-type ConnMgr struct {
-	connMap map[string]*websocket.Conn
+// P2PMgr manage all connections
+type P2PMgr struct {
+	users map[string]*User
 	mtx     sync.Mutex
 }
 
-// GetConnMgr
-func GetConnMgr() *ConnMgr {
-	if connMgr == nil {
-		connMgr = &ConnMgr{
-			connMap: make(map[string]*websocket.Conn, 0),
+// GetP2PMgr
+func GetP2PMgr() *P2PMgr {
+	if p2pMgr == nil {
+		p2pMgr = &P2PMgr{
+			users: make(map[string]*User, 0),
 		}
 	}
-	return connMgr
+	return p2pMgr
 }
 
-func (c *ConnMgr) AddConn(id string, conn *websocket.Conn) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
+func (mgr *P2PMgr) addUser(user *User) {
+	mgr.mtx.Lock()
+	defer mgr.mtx.Unlock()
+	mgr.users[user.Name] = user
+}
 
-	// disconnect previous connection
-	connStored, ok := c.connMap[id]
-	if ok {
-		connStored.Close()
+func (mgr *P2PMgr) removeUser(userName string) {
+	mgr.mtx.Lock()
+	defer mgr.mtx.Unlock()
+	delete(mgr.users, userName)
+}
+
+func (mgr *P2PMgr) UserLogin(user *User) {
+	mgr.UserLogout(user.Name)
+	mgr.addUser(user)
+	mgr.handleConn(user)
+}
+
+func (mgr *P2PMgr) UserLogout(userName string){
+	mgr.removeUser(userName)
+}
+
+func (mgr *P2PMgr) getConnByUserName(userName string) *websocket.Conn {
+	user, ok := mgr.users[userName]
+	if !ok {
+		return nil
 	}
-
-	c.connMap[id] = conn
+	return user.Conn
 }
 
-func (c *ConnMgr) RemoveConn(id string) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-
-	conn, ok := c.connMap[id]
-	if ok {
-		conn.Close()
-	}
-
-	delete(c.connMap, id)
-}
-
-func (c *ConnMgr) GetConn(id string) *websocket.Conn {
-	return c.connMap[id]
-}
-
-func (c *ConnMgr) HandleConn(id string, conn *websocket.Conn) {
-	fmt.Printf("[HandleConn] id:%v, conn:%v \n", id, conn.RemoteAddr().String())
-
-	c.AddConn(id, conn)
-	account.AddAccount(&account.Account{
-		ID:     id,
-		Status: account.Online,
-	})
+func (mgr *P2PMgr) handleConn(user *User) {
+	fmt.Printf("[handleConn] name:%v, conn:%v \n", user.Name, user.Conn.RemoteAddr().String())
 
 	// Read data
 	peer := ""
 	for {
-		msgType, msg, err := conn.ReadMessage()
+		msgType, msg, err := user.Conn.ReadMessage()
 		if err != nil {
-			fmt.Printf("conn read message failed, id:%v, err:%v \n", id, err)
+			fmt.Printf("conn read message failed, name:%v, err:%v \n", user.Name, err)
 
-			// if disconnect by client, update connections and account
-			connStored := c.GetConn(id)
-			if connStored != nil && conn != nil && connStored == conn {
-				c.RemoveConn(id)
-				account.UpdateAccountStatus(id, account.Offline)
-			}
+			// if disconnect by client
+			mgr.UserLogout(user.Name)
 			return
 		}
 
-		fmt.Printf("recieve message from %v, msgType:%v, msg:%v \n", id, msgType, string(msg))
+		fmt.Printf("recieve message from %v, msgType:%v, msg:%v \n", user.Name, msgType, string(msg))
 
 		// set-peer
 		if strings.HasPrefix(string(msg), "set-peer:") {
@@ -89,12 +78,12 @@ func (c *ConnMgr) HandleConn(id string, conn *websocket.Conn) {
 			if len(arr) == 2 {
 				peer = arr[1]
 			}
-			continue;
+			continue
 		}
 
 		// forward message to peer
 		if len(peer) > 0 {
-			peerConn := c.GetConn(peer)
+			peerConn := mgr.getConnByUserName(peer)
 			if peerConn != nil {
 				if err := peerConn.WriteMessage(msgType,msg); err != nil {
 					fmt.Printf("WriteMessage failed, %v\n", err)
@@ -102,26 +91,6 @@ func (c *ConnMgr) HandleConn(id string, conn *websocket.Conn) {
 					fmt.Printf("WriteMessage success\n")
 				}
 			}
-		}		
+		}
 	}
-}
-
-type DataFrame struct {
-	Sender string `json:"sender"`
-	Msg    string `json:"msg"`
-}
-
-func (c *ConnMgr) Send(from string, to string, msg string) error {
-	conn := c.GetConn(to)
-	if conn == nil {
-		return fmt.Errorf("connection not found, to:%v", to)
-	}
-
-	frame := DataFrame{
-		Sender: from,
-		Msg:    msg,
-	}
-
-	b, _ := json.Marshal(&frame)
-	return conn.WriteMessage(websocket.TextMessage, b)
 }

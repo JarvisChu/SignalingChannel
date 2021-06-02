@@ -1,34 +1,38 @@
 # SignalingChannel
 
-SignalingChannel for WebRTC
+SignalingChannel for WebRTC, support P2P mode and Room mode
+
+**P2P mode**
+Signalling for Peer 2 Peer mode, and Two Peers can signalling directly.
+
+**Room mode**
+Using for meeting, assign room for Peers, and Peers in the same room can communicating with each other.
+
 
 ## How to build and run
-
-```bash
-make
-./signalingchannel
-```
-
-or
 
 ```bash
 ./run.sh
 ```
 
-## How to test
+## How to use
 
-1. build SignalingChannel
-2. run SignalingChannel
-3. open and using [WebSocket Echo Page](https://www.websocket.org/echo.html) with Location `ws://localhost:8080/ws?id=1` to connect
-4. repeat step 3, with `id=2`, so you got two users (1,2) connected to SignalingChannel
-5. call HTTP API `/msg` to send msg each other, e.g.
+### P2P mode
+1. Run SignalingChannel by `run.sh`
+2. User1 Connect to SignalChannel by websocket with URL `ws://localhost:8080/ws/p2p?name=User1`
+3. User2 Connect to SignalChannel by websocket with URL `ws://localhost:8080/ws/p2p?name=User2`
+4. User1 `websocket.send("set-peer:User2")`
+5. Then, any data send through websocket by User1, will directly send to User2
+6. User2 `websocket.send("set-peer:User1")`
+7. Then, any data send through websocket by User2, will directly send to User1
 
-```json
-POST localhost:8080/msg
+See webrtc client demo: https://github.com/JarvisChu/WebRTCClient  p2p
 
-{
-    "sender":"1",
-    "recipient":"2",
-    "msg": "hello"
-}
-```
+### Room mode
+1. Run SignalingChannel by `run.sh`
+2. User1 Connect to SignalChannel by websocket with URL `ws://localhost:8080/ws/room?name=User1&roomid=12345`
+3. User2 Connect to SignalChannel by websocket with URL `ws://localhost:8080/ws/p2p?name=User2&roomid=12345`
+4. UserN Connect to SignalChannel by websocket with URL `ws://localhost:8080/ws/p2p?name=UserN&roomid=12345`
+5. Then, User1,User2,..,UserN are in the same room (roomid: 12345). Any data send through websocket by any user will boardcast to all other users in the room.
+
+See webrtc client demo: https://github.com/JarvisChu/WebRTCClient  room
