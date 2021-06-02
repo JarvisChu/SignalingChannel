@@ -83,6 +83,15 @@ func (c *ConnMgr) HandleConn(id string, conn *websocket.Conn) {
 
 		fmt.Printf("recieve message from %v, msgType:%v, msg:%v \n", id, msgType, string(msg))
 
+		// set-peer
+		if strings.HasPrefix(string(msg), "set-peer:") {
+			arr := strings.Split(string(msg), ":")
+			if len(arr) == 2 {
+				peer = arr[1]
+			}
+			continue;
+		}
+
 		// forward message to peer
 		if len(peer) > 0 {
 			peerConn := c.GetConn(peer)
@@ -93,14 +102,7 @@ func (c *ConnMgr) HandleConn(id string, conn *websocket.Conn) {
 					fmt.Printf("WriteMessage success\n")
 				}
 			}
-		}
-
-		if strings.HasPrefix(string(msg), "set-peer:") {
-			arr := strings.Split(string(msg), ":")
-			if len(arr) == 2 {
-				peer = arr[1]
-			}
-		}
+		}		
 	}
 }
 
